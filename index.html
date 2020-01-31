@@ -1,0 +1,356 @@
+<!doctype html>
+<html lang="pt-br">
+  <head>
+    <!-- Required meta tags -->
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+    <link rel="stylesheet" href="./bootstrap.min.css">
+
+    <script src="./jquery-3.3.1.slim.min.js"></script>
+
+    <title>Codificação e modulação</title>
+  </head>
+  <body>
+    <div class="container" id="container">
+        <nav class="navbar navbar-dark bg-primary">
+            <a class="navbar-brand" href="#">Codificação e modulação</a>
+        </nav>
+        <form class="my-3">
+            <div class="form-group">
+                <label >Entrada (8 bits)</label>
+                <input type="text" class="form-control" id="bin" placeholder="Digite uma palavra de 8 bits">
+            </div>
+            <div class="form-group">
+                <label>Selecione</label>
+                <select class="custom-select" id="sel">
+                    <option value="1" selected>Codificação</option>
+                    <option value="2" >Modulação</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Tipo</label>
+                <select class="custom-select" id="tipo"></select>
+            </div>
+        </form>
+        <canvas id="canvas" width="1000" height="400" style="border:1px solid #000000;"></canvas>
+    </div>
+    
+    <script>
+        var canvas = document.getElementById("canvas");
+        var ctx = canvas.getContext("2d");
+        var bit_w = canvas.width/8
+        var polo_h = canvas.height/4
+        var fase_w = bit_w/2
+        var preto = '#000000'
+        var verml = '#ff0000'
+        var cinza = '#565656'
+
+        function recalcCanvas(){
+            canvas.width = $('#container').width();
+            canvas.height = canvas.width/3;
+            bit_w = canvas.width/8
+            polo_h = canvas.height/4
+            fase_w = bit_w/2
+            draw();
+        }
+
+        opcoes();
+
+        recalcCanvas();
+
+        window.addEventListener("resize", function(){
+            recalcCanvas();
+        })
+
+        $('#bin').on('input', function(){
+            let val = $(this).val();
+            if(val.length > 8)
+                val = val.substr(0, 8);
+            setTimeout(draw, 100);
+            $('#bin').val(val.replace(/[^01]/gi, ''));
+        });
+
+
+        $('#sel').on('change', function(){
+            opcoes();
+            draw();
+        })
+
+        $('#tipo').on('change', function(){
+            draw();
+        })
+
+
+        function opcoes(){
+            let tipo = document.getElementById('tipo');
+            if($('#sel').val() == 1){
+                tipo.innerHTML =
+                `   <option value="1" selected>Nonreturn to Zero (NRZ), UNIpolar</option>
+                    <option value="2">Nonreturn to Zero-Level (NRZ-L) bipolar</option>
+                    <option value="3">Nonreturn to Zero Inverted (NRZI) bipolar</option>
+                    <option value="4">Bipolar –AMI bipolar</option>
+                    <option value="5">Pseudoternary bipolar</option>
+                    <option value="6">Manchester bipolar</option>
+                    <option value="7">Differential Manchester bipolar</option>`
+            } else {
+                tipo.innerHTML =
+                `   <option value="1" selected>Amplitude shift keying (ASK)</option>
+                    <option value="2">Frequency shift keying (FSK)</option>
+                    <option value="3">Phase shift keying (PSK)</option>`
+            }
+            draw();
+        }
+
+        function draw(){
+
+            let bits = $('#bin').val().split('')
+        
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Desenha divisões:
+            ctx.beginPath();
+            ctx.setLineDash([5, 15]); //Deixa linha traçada
+            ctx.lineWidth = canvas.height/300;
+            ctx.strokeStyle = cinza;
+            
+            ctx.font = polo_h/4 + 'px Arial';
+            ctx.fillStyle = preto;
+            ctx.textAlign = "center";
+
+            for(let i = 0; i < bits.length; i++){
+                let x = bit_w * i
+                let y = canvas.height
+                if(i < 7){
+                    ctx.moveTo(x + bit_w, 0);
+                    ctx.lineTo(x + bit_w, y);
+                }
+                ctx.fillText(bits[i], x + fase_w, polo_h/2);
+            }
+            ctx.stroke();
+
+            // Desenha linha horizontal:
+            ctx.beginPath();
+            ctx.setLineDash([]); //Deixa linha sólida
+            ctx.lineWidth = canvas.height/200;
+            ctx.strokeStyle = preto;
+            ctx.moveTo(0, 2*polo_h);
+            ctx.lineTo(canvas.width, 2*polo_h)
+            ctx.stroke();
+            
+            ctx.beginPath();
+            ctx.lineWidth = canvas.height/100;
+            ctx.strokeStyle = verml;
+
+            selectDraw(bits);
+
+            ctx.stroke()
+        }
+
+        function selectDraw(bits){
+            switch($('#sel').val()){
+                case '1':
+                    switch($('#tipo').val()){
+                        case '1': NRZ_U(bits); break;
+                        case '2': NRZ_L(bits); break;
+                        case '3': NRZ_I(bits); break;
+                        case '4': AMI_B(bits); break;
+                        case '5': PSE_B(bits); break;
+                        case '6': MAN_B(bits); break;
+                        case '7': MAN_D(bits); break;
+                        default: break;
+                    }
+                    break;
+                case '2':
+                    switch($('#tipo').val()){
+                        case '1': ASK(bits); break;
+                        case '2': FSK(bits); break;
+                        case '3': PSK(bits); break;
+                        default: break;
+                    }
+                    break;
+                default: break;
+            }
+        }
+
+        // Nonreturn to Zero (NRZ), UNIpolar
+        function NRZ_U(bits){
+            let um = polo_h*1;
+            let zr = polo_h*2;
+            for(let n = 0; n < bits.length; n++){
+                if(bits[n] == 1) {
+                    ctx.lineTo(bit_w*n, um);
+                    ctx.lineTo(bit_w*(n + 1), um);
+                } else {
+                    ctx.lineTo(bit_w*n, zr);
+                    ctx.lineTo(bit_w*(n + 1), zr);
+                }
+            }
+        }
+
+        // Nonreturn to Zero-Level (NRZ-L) bipolar
+        function NRZ_L(bits){
+            let um = polo_h*1;
+            let zr = polo_h*3;
+            for(let n = 0; n < bits.length; n++){
+                if(bits[n] == 1) {
+                    ctx.lineTo(bit_w*n, um);
+                    ctx.lineTo(bit_w*(n + 1), um);
+                } else {
+                    ctx.lineTo(bit_w*n, zr);
+                    ctx.lineTo(bit_w*(n + 1), zr);
+                }
+            }
+        }
+
+        // Nonreturn to Zero Inverted (NRZI) bipolar
+        function NRZ_I(bits){
+            let um = polo_h*3;
+            let zr = polo_h*1;
+            for(let n = 0; n < bits.length; n++){
+                if(bits[n] == 1) {
+                    ctx.lineTo(bit_w*n, um);
+                    ctx.lineTo(bit_w*(n + 1), um);
+                } else {
+                    ctx.lineTo(bit_w*n, zr);
+                    ctx.lineTo(bit_w*(n + 1), zr);
+                }
+            }
+        }
+        
+        // Bipolar –AMI bipolar
+        function AMI_B(bits){
+            let umUp = polo_h*1;
+            let umDown = polo_h*3;
+            let zr = polo_h*2;
+            let ultmUm = umDown;
+            for(let n = 0; n < bits.length; n++){
+                if(bits[n] == 1) {
+                    if(ultmUm == umDown) ultmUm = umUp
+                    else ultmUm = umDown
+                    ctx.lineTo(bit_w*n, ultmUm);
+                    ctx.lineTo(bit_w*(n + 1), ultmUm);
+                } else {
+                    ctx.lineTo(bit_w*n, zr);
+                    ctx.lineTo(bit_w*(n + 1), zr);
+                }
+            }
+        }
+
+        // Pseudoternary bipolar
+        function PSE_B(bits){
+            let zrUp = polo_h*1;
+            let zrDown = polo_h*3;
+            let um = polo_h*2;
+            let ultmZr = zrDown;
+            for(let n = 0; n < bits.length; n++){
+                if(bits[n] == 0) {
+                    if(ultmZr == zrDown) ultmZr = zrUp
+                    else ultmZr = zrDown
+                    ctx.lineTo(bit_w*n, ultmZr);
+                    ctx.lineTo(bit_w*(n + 1), ultmZr);
+                } else {
+                    ctx.lineTo(bit_w*n, um);
+                    ctx.lineTo(bit_w*(n + 1), um);
+                }
+            }
+        }
+
+        // Manchester bipolar
+        function MAN_B(bits){
+            let cima = polo_h*1;
+            let baix = polo_h*3;
+            for(let n = 0; n < bits.length; n++){
+                if(bits[n] == 1) {
+                    ctx.lineTo(bit_w*n, baix);
+                    ctx.lineTo(bit_w*n + fase_w, baix);
+                    ctx.lineTo(bit_w*n + fase_w, cima);
+                    ctx.lineTo(bit_w*(n + 1), cima);
+                } else {
+                    ctx.lineTo(bit_w*n, cima);
+                    ctx.lineTo(bit_w*n + fase_w, cima);
+                    ctx.lineTo(bit_w*n + fase_w, baix);
+                    ctx.lineTo(bit_w*(n + 1), baix);
+                }
+            }
+        }
+
+        // Differential Manchester bipolar
+        function MAN_D(bits){
+            let cima = polo_h*1;
+            let baix = polo_h*3;
+            let prim, ultm = baix;
+            for(let n = 0; n < bits.length; n++){
+                if(bits[n] == 0) {
+                    if(ultm == cima) {
+                        prim = baix;
+                        ultm = cima;
+                    } else {
+                        prim = cima;
+                        ultm = baix;
+                    }
+                } else {
+                    if(ultm == cima) {
+                        prim = cima;
+                        ultm = baix;
+                    } else {
+                        prim = baix;
+                        ultm = cima;
+                    }
+                }
+                ctx.lineTo(bit_w*n, prim);
+                ctx.lineTo(bit_w*n + fase_w, prim);
+                ctx.lineTo(bit_w*n + fase_w, ultm);
+                ctx.lineTo(bit_w*(n + 1), ultm);
+            }
+        }
+
+        // Amplitude shift keying (ASK) (2 senoides por bit, metade da amplitude para bit0)
+        function ASK(bits){
+            for(let i = 0; i < bits.length; i++){
+                let x = i*bit_w;
+                let x2 = x + bit_w;
+                let amp = bits[i] == 1 ? polo_h : polo_h/2;
+                let h = polo_h*2;
+                while (x < x2) {
+                    let y = h + amp * -Math.sin(2*2*Math.PI*x/bit_w);
+                    ctx.lineTo(x, y);
+                    x++;
+                }
+            }
+        }
+        
+        // Frequency shift keying (FSK) (2 senoides para bit1, 1 senoide para bit0 )
+        function FSK(bits){
+            for(let i = 0; i < bits.length; i++){
+                let x = i*bit_w;
+                let x2 = x + bit_w;
+                let freq = bits[i] == 1 ? 2 : 1;
+                let h = polo_h*2;
+                while (x < x2) {
+                    let y = h + polo_h * -Math.sin(freq*2*Math.PI*x/bit_w);
+                    ctx.lineTo(x, y);
+                    x++;
+                }
+            }
+        }
+
+        // Phase shift keying (PSK) (1 senoide por bit, 180º de chaveamento de fase)
+        function PSK(bits){
+            for(let i = 0; i < bits.length; i++){
+                let x = i*bit_w;
+                let x2 = x + bit_w;
+                let shift = bits[i] == 1 ? 0 : Math.PI;
+                let h = polo_h*2;
+                while (x < x2) {
+                    let y = h + polo_h * -Math.sin(2*Math.PI*x/bit_w + shift);
+                    ctx.lineTo(x, y);
+                    x++;
+                }
+            }
+        }
+
+    </script>
+  </body>
+</html>
